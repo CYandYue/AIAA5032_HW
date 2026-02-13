@@ -21,23 +21,27 @@ class BaselineRunner:
         self.results = {}
         self.start_time = None
 
-        # Setup organized directory structure
+        # Setup shared directories
         self.temp_dir = os.path.join(self.work_dir, 'temp')
-        self.features_dir = os.path.join(self.work_dir, 'features')
-        self.bof_dir = os.path.join(self.features_dir, 'bof')
-        self.models_dir = os.path.join(self.work_dir, 'models')
         self.data_symlink_dir = os.path.join(self.work_dir, 'data')
         self.labels_dir = os.path.join(self.work_dir, 'labels')
 
-        # Create results directory
-        self.results_dir = os.path.join(self.work_dir, 'experiments')
-        os.makedirs(self.results_dir, exist_ok=True)
+        # Create experiments directory
+        experiments_dir = os.path.join(self.work_dir, 'experiments')
+        os.makedirs(experiments_dir, exist_ok=True)
 
-        # Setup timestamp
+        # Setup timestamp and experiment directory
         self.timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        self.exp_name = f"k{cluster_num}_{self.timestamp}"
-        self.exp_dir = os.path.join(self.results_dir, self.exp_name)
+        self.exp_name = f"kmeans_k{cluster_num}_{self.timestamp}"
+        self.exp_dir = os.path.join(experiments_dir, self.exp_name)
         os.makedirs(self.exp_dir, exist_ok=True)
+
+        # Models and features saved in experiment directory
+        self.models_dir = os.path.join(self.exp_dir, 'models')
+        self.features_dir = os.path.join(self.exp_dir, 'features')
+        self.bof_dir = self.features_dir
+        os.makedirs(self.models_dir, exist_ok=True)
+        os.makedirs(self.features_dir, exist_ok=True)
 
     def log(self, message, level='INFO'):
         """Print and log message"""
@@ -93,12 +97,9 @@ class BaselineRunner:
         self.log("STEP 0: Setting up environment")
         self.log("=" * 60)
 
-        # Create organized directory structure
+        # Create shared directory structure (not experiment-specific)
         dirs_to_create = [
             ('temp', 'Temporary files'),
-            ('features', 'Feature files'),
-            ('features/bof', 'Bag-of-Features'),
-            ('models', 'Trained models'),
             ('data', 'Data symlinks'),
             ('labels', 'Label files'),
         ]
@@ -126,12 +127,15 @@ class BaselineRunner:
                 self.log(f"✓ Copied: {file}")
 
         self.log("\nDirectory structure:")
-        self.log(f"  temp/              - Temporary files")
-        self.log(f"  data/              - Data symlinks")
-        self.log(f"  labels/            - Label files")
-        self.log(f"  features/bof/      - Bag-of-Features")
-        self.log(f"  models/            - Trained models")
-        self.log(f"  experiments/       - Experiment results")
+        self.log(f"  temp/                   - Temporary files (shared)")
+        self.log(f"  data/                   - Data symlinks (shared)")
+        self.log(f"  labels/                 - Label files (shared)")
+        self.log(f"  experiments/{self.exp_name}/")
+        self.log(f"    ├─ models/            - Trained models")
+        self.log(f"    ├─ features/          - Extracted features")
+        self.log(f"    ├─ val_*.csv          - Validation predictions")
+        self.log(f"    ├─ test_*.csv         - Test predictions")
+        self.log(f"    └─ SUMMARY.txt        - Results summary")
         self.log("Environment setup complete!\n")
 
     def step1_select_frames(self):

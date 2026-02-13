@@ -1,9 +1,14 @@
-#!/bin/python 
+#!/bin/python
+import os
+# Set environment variables BEFORE importing numpy/sklearn
+os.environ['OPENBLAS_NUM_THREADS'] = '4'
+os.environ['MKL_NUM_THREADS'] = '4'
+os.environ['OMP_NUM_THREADS'] = '4'
+
 import pandas as pd
 import numpy as np
-import os
 from sklearn.cluster import KMeans
-import pickle 
+import pickle
 import sys
 import time
 
