@@ -32,8 +32,24 @@ if __name__ == '__main__':
   feat_list = []
   video_ids = []
   for line in fread.readlines():
-    # HW00006228
-    video_id = os.path.splitext(line.strip())[0]
+    line_stripped = line.strip()
+
+    # Skip empty lines
+    if not line_stripped:
+      continue
+
+    # Skip header line if present
+    if line_stripped.startswith('Id,') or line_stripped == 'Id':
+      continue
+
+    # Handle both CSV format (Id,Category) and plain text (Id only)
+    if ',' in line_stripped:
+      # CSV format: extract only the video ID (first column)
+      video_id = line_stripped.split(',')[0]
+    else:
+      # Plain text format: entire line is the video ID
+      video_id = os.path.splitext(line_stripped)[0]
+
     video_ids.append(video_id)
     feat_filepath = os.path.join(args.feat_dir, video_id + args.feat_appendix)
     if not os.path.exists(feat_filepath):
