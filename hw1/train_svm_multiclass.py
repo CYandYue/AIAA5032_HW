@@ -42,12 +42,15 @@ if __name__ == '__main__':
       label_list.append(int(df_videos_label[video_id]))
 
   print("number of samples: %s" % len(feat_list))
-  y = np.array()
-  X = np.array()
+  y = np.array(label_list)
+  X = np.array(feat_list)
 
   # pass array for svm training
   # one-versus-rest multiclass strategy
-
+  print("Training SVM with RBF kernel...")
+  model = SVC(kernel='rbf', C=1.0, gamma='scale', decision_function_shape='ovr', random_state=42)
+  model.fit(X, y)
+  print("SVM training completed!")
 
   # save trained SVM in output_file
   pickle.dump(model, open(args.output_file, 'wb'))

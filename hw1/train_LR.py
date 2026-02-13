@@ -40,12 +40,15 @@ if __name__ == '__main__':
       label_list.append(int(df_videos_label[video_id]))
 
   print("number of samples: %s" % len(feat_list))
-  y = np.array()
-  X = np.array()
+  y = np.array(label_list)
+  X = np.array(feat_list)
 
   # pass array for LR training
   # one-versus-rest multiclass strategy
-
+  print("Training Logistic Regression...")
+  model = LogisticRegression(multi_class='ovr', solver='lbfgs', max_iter=1000, random_state=42)
+  model.fit(X, y)
+  print("LR training completed!")
 
   # save trained SVM in output_file
   pickle.dump(model, open(args.output_file, 'wb'))

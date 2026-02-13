@@ -41,11 +41,11 @@ if __name__ == '__main__':
     else:
       feat_list.append(np.genfromtxt(feat_filepath, delimiter=";", dtype="float"))
 
-  X = np.array()
+  X = np.array(feat_list)
 
   # 3. Get predictions
   # (num_samples) with integer
-  pred_classes = 
+  pred_classes = mlp.predict(X)
 
   # 4. save for submission
   with open(args.output_file, "w") as f:

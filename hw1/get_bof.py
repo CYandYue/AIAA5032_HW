@@ -41,13 +41,19 @@ if __name__ == '__main__':
 
     ## use kmeans.predict(mfcc_features_of_video)
     # (num_frames,), each row is an integer for the closest cluster center
+    predictions = kmeans.predict(array)
 
     # create dict containing frequencies of each "code word"
- 
     # {0: count_for_0, 1: count_for_1, ...}
+    freq_dict = collections.Counter(predictions)
 
     # normalize the frequency by dividing with frame number
-
+    list_freq = []
+    for i in range(args.cluster_num):
+        if i in freq_dict:
+            list_freq.append(freq_dict[i] / len(predictions))
+        else:
+            list_freq.append(0.0)
 
     #  ************************************TA: Your code ends here
 

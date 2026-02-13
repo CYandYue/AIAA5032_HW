@@ -41,11 +41,11 @@ if __name__ == '__main__':
     else:
       feat_list.append(np.genfromtxt(feat_filepath, delimiter=";", dtype='float'))
 
-  X = np.array()
+  X = np.array(feat_list)
 
   # 3. Get scores with trained svm model
   # (num_samples, num_class)
-  scoress = 
+  scoress = svm.decision_function(X)
 
   # 4. save the argmax decisions for submission
   with open(args.output_file, "w") as f:

@@ -42,10 +42,15 @@ if __name__ == '__main__':
       label_list.append(int(df_videos_label[video_id]))
 
   print("number of samples: %s" % len(feat_list))
-  y = np.array()
-  X = np.array()
+  y = np.array(label_list)
+  X = np.array(feat_list)
 
-
+  # Train MLP classifier
+  print("Training MLP classifier...")
+  model = MLPClassifier(hidden_layer_sizes=(100,), activation='relu', solver='adam',
+                        max_iter=500, random_state=42, verbose=True)
+  model.fit(X, y)
+  print("MLP training completed!")
 
   # save trained MLP in output_file
   pickle.dump(model, open(args.output_file, 'wb'))

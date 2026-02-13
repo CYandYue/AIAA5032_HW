@@ -24,7 +24,13 @@ if __name__ == '__main__':
     selection = pd.read_csv(mfcc_csv_file, sep=';', dtype='float')
 
     # TA: perform kmeans clustering here. get a model file variable kmeans
+    print(f"Loaded {len(selection)} MFCC feature vectors")
+    print(f"Training K-Means with {cluster_num} clusters...")
 
+    kmeans = KMeans(n_clusters=cluster_num, random_state=42, verbose=1, max_iter=300)
+    kmeans.fit(selection)
+
+    print(f"K-Means training completed. Inertia: {kmeans.inertia_:.2f}")
 
     # 2. Save trained model
     pickle.dump(kmeans, open(output_file, 'wb'))
