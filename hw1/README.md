@@ -139,13 +139,156 @@ Applied per-sample at every training step:
 
 ---
 
-## Earlier Experiments (see `old_scripts/`)
+## Experiment Journey (see `old_scripts/`)
 
-| Folder | What was tried |
+The dataset has ~5,000 training samples across 10 classes (~500 per class), which makes
+overfitting the central challenge throughout all experiments.
+
+---
+
+### Stage 1 — Baselines: BoF + Classical Classifiers (`old_scripts/baseline/`)
+
+**Approach:** Follow the provided pipeline — K-Means codebook (k=50) on MFCC frames →
+Bag-of-Features (BoF) histogram per video → train SVM / LR / MLP.
+
+**Results:**
+
+| Classifier | Val Acc |
 |---|---|
-| `baseline/` | MFCC Bag-of-Features → SVM / LR / MLP; hyperparameter grid search |
-| `mlp/` | Bagging MLP (10 models), PCA-MLP, MLP architecture search |
-| `fisher_vector/` | GMM (k=200, 300) + Fisher Vector encoding → MLP / LR / SVM |
-| `xgboost/` | XGBoost on Fisher Vector features (val 66%, worse than MLP) |
-| `cnn/` | 1D-CNN with residual blocks (val 63%, unstable) |
-| `ensemble/` | Post-hoc soft-voting between BiLSTM and Bagging-MLP |
+| SVM (RBF) | ~55% |
+| Logistic Regression | ~54% |
+| MLP (200, 100) | ~58% |
+
+**Observation:** BoF destroys temporal ordering and quantises features coarsely.
+MLP was the best classical classifier, so all subsequent classical experiments kept MLP as the
+classifier head.
+
+---
+
+### Stage 2 — Better Features: Fisher Vector (`old_scripts/fisher_vector/`)
+
+**Motivation:** BoF uses hard assignment (each frame goes to exactly one codeword).
+Fisher Vector (FV) uses a GMM soft assignment and encodes both first- and second-order
+statistics, producing a richer fixed-length video representation.
+
+**Steps:**
+1. Train a GMM with k=200 components on a random subset of MFCC frames (`run_gmm.py`)
+2. Encode each video as a Fisher Vector of dimension 2 × 200 × 39 = 15,600 (`run_fisher_vector.py`)
+3. Train MLP / LR / SVM on the FV features
+
+**Results:**
+
+| Features | Classifier | Val Acc | Kaggle |
+|---|---|---|---|
+| Fisher Vector k=200 | MLP | 67.65% | 0.629 |
+| Fisher Vector k=300 | MLP | **69.18%** | — |
+
+Increasing the GMM components from 200 to 300 (feature dim: 23,400) improved accuracy by
+~1.5 pp. This became the strongest classical baseline.
+
+---
+
+### Stage 3 — Pushing the Classical Pipeline (`old_scripts/mlp/`, `old_scripts/xgboost/`)
+
+Three directions were explored to squeeze more out of the Fisher Vector features:
+
+**3a. XGBoost** (`old_scripts/xgboost/`): Replaced MLP with XGBoost on Fisher Vector k=200.
+Result: val 66.24% — *worse* than MLP. High-dimensional Fisher Vectors (15,600-dim) do not
+suit tree-based models, which cannot exploit the dense linear structure that MLPs handle well.
+
+**3b. MLP architecture search** (`old_scripts/mlp/run_mlp_search.py`): Grid search over
+hidden sizes, learning rates, and regularisation strengths. Best config: (512, 256) hidden
+units, val 68.12%. Marginal gain over the default (200, 100).
+
+**3c. PCA + MLP** (`old_scripts/mlp/run_pca_mlp.py`): Reduced Fisher Vector to 256 PCA
+components before MLP. Result: val 65.41% — *worse*. PCA retained only ~60–70% of variance,
+discarding useful discriminative information.
+
+**3d. Bagging MLP** (`old_scripts/mlp/run_bagging_mlp.py`): Trained 10 MLPs on different
+random splits of trainval data, averaged softmax probabilities. Result: val 67.18% — no
+improvement over a single well-tuned MLP. The bottleneck was the feature quality, not
+classifier variance.
+
+**Key insight from Stage 3:** The classical pipeline had plateaued at ~69%. Richer features
+or a model that could exploit temporal structure were needed.
+
+---
+
+### Stage 4 — Sequence Modelling: BiLSTM (`run_bilstm.py`)
+
+**Motivation:** All classical methods aggregate MFCC frames into a single fixed-length vector,
+losing temporal dynamics. A recurrent model can operate directly on the raw variable-length
+MFCC sequence.
+
+**Architecture:**
+- 2-layer Bidirectional LSTM (hidden=256 per direction)
+- Attention Pooling over all time steps (instead of last hidden state)
+- Batch Normalisation on input, Dropout (p=0.5) in the classifier head
+
+**Overfitting problem:** Training accuracy quickly reached 85–90% while validation
+accuracy plateaued at 65–68%, with a 20+ pp gap. Several fixes were tried:
+
+| Attempt | Val Acc | Note |
+|---|---|---|
+| Base BiLSTM (hidden=256, dropout=0.5) | 68% | Strong overfitting |
+| Smaller model (hidden=128, dropout=0.7) | 66.6% | Less capacity hurt accuracy too |
+| + Speed perturbation (×0.8–1.2) | +1–2 pp | Most effective single augmentation |
+| + Time & frequency masking (SpecAugment-style) | +0.5–1 pp | Complementary to speed perturb |
+| + Gaussian noise + CMVN | marginal | Stabilised training |
+| **Full augmentation stack** | **69.41%** | Best single-split result |
+
+**Observation:** Data augmentation was the key lever. Without it, the BiLSTM overfit
+badly; with the full stack it matched and slightly exceeded the Fisher Vector MLP.
+
+---
+
+### Stage 5 — 1D-CNN (`old_scripts/cnn/`)
+
+**Motivation:** Test whether convolutional inductive bias (local pattern detection) would
+help compared to recurrent models.
+
+**Architecture:** Residual 1D-CNN blocks with stride-based downsampling (total stride = 8),
+masked global average pooling over variable-length sequences. Same augmentation as BiLSTM.
+
+**Result:** Val 63.29%, with highly unstable validation loss oscillating between 1.3 and 3.9.
+The CNN was significantly harder to train on this small dataset and was abandoned.
+
+---
+
+### Stage 6 — Final: K-Fold Ensemble + TTA + Label Smoothing (`run_bilstm_kfold.py`)
+
+**Motivation:** The single-split BiLSTM reached 69.41% but its Kaggle score was 0.66,
+suggesting the single validation split introduced variance. Three complementary techniques
+were combined to address this:
+
+**1. 5-Fold Stratified Cross-Validation:**
+Instead of one train/val split, train 5 independent BiLSTM models, each on a different 80%
+of trainval data. This ensures every sample is used for training in 4 out of 5 folds, and
+the final test prediction is an average of 5 diverse models.
+
+**2. Test-Time Augmentation (TTA):**
+At inference, each test sample is augmented 8 times with the same random augmentation used
+during training (speed perturbation, masking, noise). The 8 softmax outputs are averaged,
+reducing prediction variance from stochastic augmentation.
+
+**3. Label Smoothing (ε = 0.1):**
+Replaces hard one-hot targets (1.0 / 0.0) with soft targets (0.9 / 0.011), preventing the
+model from becoming overconfident on training labels and improving calibration.
+
+**Final ensemble:** 5 models × 8 TTA passes = **40 soft predictions averaged** per test sample.
+
+**Results:**
+
+| Fold | Val Acc |
+|---|---|
+| Fold 1 | 67.58% |
+| Fold 2 | 67.31% |
+| Fold 3 | 68.11% |
+| Fold 4 | 68.90% |
+| Fold 5 | 70.94% |
+| **Mean** | **68.57%** |
+| **Kaggle** | **0.72 (1st place)** |
+
+The ~3.4 pp gain over the single-model Kaggle score (0.66 → 0.72) comes from the ensemble
+reducing both bias (more training data per model on average) and variance (diversity across
+folds and TTA passes).
