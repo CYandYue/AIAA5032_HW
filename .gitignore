@@ -6,5 +6,4 @@ models/
 temp/
 features/
 selected.mfcc.csv
-*.md
 experiments
