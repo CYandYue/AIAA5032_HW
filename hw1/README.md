@@ -1,9 +1,11 @@
 # AIAA5032 HW1 — Audio-Based Video Classification
 
-**Best Kaggle Score: 0.71842 (1st place) — Kaggle name: Yue Chang**
+## Leaderboard (Feb 19, 2026) — Kaggle name: Yue Chang
 Approach: BiLSTM + 5-Fold Cross-Validation Ensemble + Test-Time Augmentation (TTA)
 
----
+
+![Leaderboard screenshot](leaderboard/leaderboard_Feb19.png)
+
 
 ## Directory Structure
 
@@ -39,7 +41,7 @@ pip install torch==2.0.1 scikit-learn numpy
 
 ---
 
-## How to Reproduce the Best Result
+## Reproduction 
 
 ### 1. Prepare labels
 
@@ -71,7 +73,7 @@ Output: `experiments/bilstm_kfold_<timestamp>/test_kfold_tta.csv`
 
 Upload that CSV to Kaggle.
 
-### Key Arguments
+<!-- ### Key Arguments
 
 | Argument | Default | Description |
 |---|---|---|
@@ -85,7 +87,7 @@ Upload that CSV to Kaggle.
 | `--n_tta` | 8 | TTA passes at inference |
 | `--label_smoothing` | 0.1 | Label smoothing coefficient |
 
----
+--- -->
 
 ## Method
 
@@ -126,7 +128,10 @@ Applied per-sample at every training step:
 
 ---
 
-## Results Summary
+
+## Experiment Journey (see `old_scripts/`)
+
+~5,000 training samples, 10 classes — overfitting is the central challenge throughout.
 
 | Method | Val Acc | Kaggle Score |
 |---|---|---|
@@ -136,16 +141,6 @@ Applied per-sample at every training step:
 | Fisher Vector (k=300) + MLP | ~69% | — |
 | BiLSTM (single model, train split) | 69.4% | 0.66 |
 | **BiLSTM K-Fold + TTA + Label Smoothing** | **68.6% (CV mean)** | **0.71842 (1st)** |
-
-### Leaderboard (Feb 19, 2026) — Kaggle name: Yue Chang
-
-![Leaderboard screenshot](leaderboard/leaderboard_Feb19.png)
-
----
-
-## Experiment Journey (see `old_scripts/`)
-
-~5,000 training samples, 10 classes — overfitting is the central challenge throughout.
 
 ---
 
