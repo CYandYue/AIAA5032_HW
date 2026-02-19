@@ -47,10 +47,29 @@ if __name__ == '__main__':
 
   # Train MLP classifier
   print("Training MLP classifier...")
-  model = MLPClassifier(hidden_layer_sizes=(100,), activation='relu', solver='adam',
-                        max_iter=500, random_state=42, verbose=True)
+  print("Configuration:")
+  print("  - Hidden layers: (200, 100)")
+  print("  - Max iterations: 2000")
+  print("  - Early stopping: enabled")
+  print("  - Validation fraction: 0.1")
+
+  model = MLPClassifier(
+      hidden_layer_sizes=(200, 100),
+      activation='relu',
+      solver='adam',
+      max_iter=2000,
+      random_state=42,
+      verbose=True,
+      early_stopping=True,
+      validation_fraction=0.1,
+      n_iter_no_change=20,
+      alpha=0.0001
+  )
   model.fit(X, y)
   print("MLP training completed!")
+  print(f"Final training loss: {model.loss_:.4f}")
+  print(f"Best validation score: {model.best_validation_score_:.4f}")
+  print(f"Converged in {model.n_iter_} iterations")
 
   # save trained MLP in output_file
   pickle.dump(model, open(args.output_file, 'wb'))
